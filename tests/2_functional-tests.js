@@ -10,13 +10,12 @@ var chaiHttp = require('chai-http');
 var chai = require('chai');
 var assert = chai.assert;
 var server = require('../server');
-var ObjectId = require('mongodb').ObjectID;
 
 chai.use(chaiHttp);
 
 suite('Functional Tests', function() {
-    let issue_id;  // used for PUT functional testing
-
+    let issue_id,  // used for PUT functional testing
+        invalid_id = '5df0d8b60ddb3b196b5494f2';
     suite('POST /api/issues/{project} => object with issue data', function() {
 
       test('Every field filled in', function(done) {
@@ -129,7 +128,6 @@ suite('Functional Tests', function() {
           assert.equal(res.text, 'successfully updated');
 
           // test invalid `_id`
-          let invalid_id = '5df0d8b60ddb3b196b5494f2';
           chai.request(server)
             .put('/api/issues/test')
             .send({
@@ -218,13 +216,41 @@ suite('Functional Tests', function() {
     suite('DELETE /api/issues/{project} => text', function() {
 
       test('No _id', function(done) {
-
+        chai.request(server)
+          .delete('/api/issues/test')
+          .send({})
+          .end(function(err, res){
+            assert.equal(res.status, 422);
+            assert.equal(res.text, '_id error');
+            done();
+          });
       });
 
       test('Valid _id', function(done) {
-
+        chai.request(server)
+          .delete('/api/issues/test')
+          .send({
+              _id: issue_id,
+          })
+          .end(function(err, res){
+            assert.equal(res.status, 200);
+            assert.equal(res.text, `deleted ${issue_id}`);
+            done();
+          });
       });
 
+      test('Invalid _id', function(done) {
+        chai.request(server)
+          .delete('/api/issues/test')
+          .send({
+              _id: invalid_id,
+          })
+          .end(function(err, res){
+            assert.equal(res.status, 404);
+            assert.equal(res.text, `could not delete ${invalid_id}`);
+            done();
+          });
+      });
     });
 
 });

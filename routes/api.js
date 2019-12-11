@@ -103,8 +103,21 @@ module.exports = function (app) {
         }
     })
 
-    .delete(function (req, res){
+    .delete(async function (req, res){
         var project = req.params.project;
         let col = mongo.db().collection(project);
+        const input_keys = Object.keys(req.body);
+        const required = ['_id'];
+
+        if (!required.every((val) => {
+            return input_keys.includes(val) && req.body[val];
+        })) return res.status(422).send('_id error');
+
+        let r = await col.deleteOne({ _id: new ObjectId(req.body._id)});
+        if (r.deletedCount == 1) {
+            return res.status(200).send(`deleted ${req.body._id}`);
+        } else {
+            return res.status(404).send(`could not delete ${req.body._id}`);
+        }
     });
 };
