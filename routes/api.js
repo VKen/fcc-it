@@ -68,10 +68,39 @@ module.exports = function (app) {
         return res.status(500).send('DB insertion failed');
     })
 
-    .put(function (req, res){
+    .put(async function (req, res){
         var project = req.params.project;
         let col = mongo.db().collection(project);
+        const input_keys = Object.keys(req.body);
+        const required = ['_id'];
+        const optional = ['issue_title', 'issue_text', 'created_by', 'assigned_to', 'status_text'];
 
+        if (!required.every((val) => {
+            return input_keys.includes(val) && req.body[val];
+        })) return res.status(422).send('missing required fields');
+
+        const {_id, ...optional_fields} = req.body;
+
+        optional.forEach((val) => {
+            if (input_keys.includes(val)) {
+                if (!optional_fields[val]) delete optional_fields[val];
+            }
+        });
+
+        if (Object.keys(optional_fields).length == 0) {
+            return res.status(200).send('no updated field sent');
+        }
+
+        // add updated time
+        optional_fields['updated_on'] = new Date();
+
+        // search and update
+        let r = await col.updateOne({_id: new ObjectId(req.body._id)}, {$set: optional_fields});
+        if (r.matchedCount == 1) {
+            return res.status(200).send('successfully updated');
+        } else {
+            return res.status(200).send(`could not update ${req.body._id}`);
+        }
     })
 
     .delete(function (req, res){

@@ -10,10 +10,12 @@ var chaiHttp = require('chai-http');
 var chai = require('chai');
 var assert = chai.assert;
 var server = require('../server');
+var ObjectId = require('mongodb').ObjectID;
 
 chai.use(chaiHttp);
 
 suite('Functional Tests', function() {
+    let issue_id;  // used for PUT functional testing
 
     suite('POST /api/issues/{project} => object with issue data', function() {
 
@@ -43,6 +45,9 @@ suite('Functional Tests', function() {
           assert.exists(res.body.updated_on, 'updated_on is an object');
           assert.isBoolean(res.body.open, 'open is boolean');
           assert.exists(res.body._id, '_id field exists');
+
+          issue_id = res.body._id;  // to be used in put request later
+
           done();
         });
       });
@@ -92,14 +97,66 @@ suite('Functional Tests', function() {
     suite('PUT /api/issues/{project} => text', function() {
 
       test('No body', function(done) {
+       chai.request(server)
+        .put('/api/issues/test')
+        .send({})  // no body
+        .end(function(err, res){
+          assert.equal(res.status, 422);
+          assert.equal(res.text, 'missing required fields');
 
+          chai.request(server)
+            .put('/api/issues/test')
+            .send({
+              _id: issue_id,  // nofields
+            })
+            .end(function(err, res){
+              assert.equal(res.status, 200);
+              assert.equal(res.text, 'no updated field sent');
+              done();
+            })
+        })
       });
 
       test('One field to update', function(done) {
+       chai.request(server)
+        .put('/api/issues/test')
+        .send({
+          _id: issue_id,
+          issue_title: 'Updated Title',
+        })
+        .end(function(err, res){
+          assert.equal(res.status, 200);
+          assert.equal(res.text, 'successfully updated');
 
+          // test invalid `_id`
+          let invalid_id = '5df0d8b60ddb3b196b5494f2';
+          chai.request(server)
+            .put('/api/issues/test')
+            .send({
+              _id: invalid_id,
+              issue_title: 'Updated Title',
+            })
+            .end(function(err, res){
+              assert.equal(res.status, 200);
+              assert.equal(res.text, `could not update ${invalid_id}`);
+              done();
+            })
+        })
       });
 
       test('Multiple fields to update', function(done) {
+        chai.request(server)
+          .put('/api/issues/test')
+          .send({
+            _id: issue_id,
+            created_by: 'Functional Test - more fields updated',
+            assigned_to: 'unknown updated',
+          })
+          .end(function(err, res){
+            assert.equal(res.status, 200);
+            assert.equal(res.text, 'successfully updated');
+            done();
+          })
 
       });
 
