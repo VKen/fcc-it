@@ -33,40 +33,39 @@ module.exports = function (app) {
         res.json(col.find().toArray());
     })
 
-    .post(function (req, res){
+    .post(async function (req, res){
         var project = req.params.project;
         let col = mongo.db().collection(project);
         const input_keys = Object.keys(req.body);
         const required = ['issue_title', 'issue_text', 'created_by'];
         const optional = ['assigned_to', 'status_text'];
-        if (required.every((val) => {
+
+        if (!required.every((val) => {
             return input_keys.includes(val) && req.body[val];
-        })){
-            //  check and insert other optional fields
-            optional.forEach((val) => {
-                if (!input_keys.includes(val)) {
-                    req.body[val] = '';
-                }
-            });
+        })) return res.status(422).send('missing required fields');
 
-            // insert other meta data fields
-            // - created_on
-            let timestamp = new Date();
-            req.body['created_on'] = timestamp;
-            // - updated_on
-            req.body['updated_on'] = timestamp;
-            // - open
-            req.body['open'] = true;  // initial state
+        //  check and insert other optional fields
+        optional.forEach((val) => {
+            if (!input_keys.includes(val)) {
+                req.body[val] = '';
+            }
+        });
 
-            col.insertOne(req.body, {}, (err, r) => {
-                if (err) {
-                    return res.status(500).send()
-                }
-                res.status(200).json(r.ops[0]);
-            });
-        } else {
-            res.status(422).send('missing required fields');
+        // insert other meta data fields
+        // - created_on
+        let timestamp = new Date();
+        req.body['created_on'] = timestamp;
+        // - updated_on
+        req.body['updated_on'] = timestamp;
+        // - open
+        req.body['open'] = true;  // initial state
+
+        let r = await col.insertOne(req.body)
+
+        if (r.insertedCount == 1) {
+            return res.status(200).json(r.ops[0]);
         }
+        return res.status(500).send('DB insertion failed');
     })
 
     .put(function (req, res){
