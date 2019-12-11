@@ -27,10 +27,10 @@ module.exports = function (app) {
 
   app.route('/api/issues/:project')
 
-    .get(function (req, res){
+    .get(async function (req, res){
         var project = req.params.project;
         let col = mongo.db().collection(project);
-        res.json(col.find().toArray());
+        res.json(await col.find(req.query).toArray());
     })
 
     .post(async function (req, res){
